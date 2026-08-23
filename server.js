@@ -34,7 +34,9 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', app: 'prem' }));
 
 app.get('/api/prenumerationer', async (req, res) => {
   try {
-    const data = await directusFetch('/items/prenumerationer?sort=dragningsdag&filter[aktiv][_eq]=true');
+    // Hämtar även pausade – frontend filtrerar. Filtrerades de bort här gick en pausad
+    // prenumeration inte att få tillbaka, och kalendern kunde inte visa den alls.
+    const data = await directusFetch('/items/prenumerationer?sort=dragningsdag');
     res.json(data.data);
   } catch (err) {
     console.error('GET error:', err);

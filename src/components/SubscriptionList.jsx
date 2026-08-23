@@ -1,126 +1,117 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formateraPris, getFaviconUrl, getKategori } from '../utils';
-import { Edit2, Trash2, Power, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, Power, Plus } from 'lucide-react';
+import {
+  formateraBelopp, formateraDagarKvar, getFaviconUrl, getKategori,
+  kategoriTon, nästaDragning,
+} from '../utils';
 
-function SubscriptionList({ prenumerationer, onEdit, onDelete, onToggleAktiv }) {
-  if (!prenumerationer || prenumerationer.length === 0) {
+/** Favicon med emoji-reserv när tjänsten saknar url eller Google inte har någon ikon. */
+export function Tjänsteikon({ url, emoji, className = 'card-icon' }) {
+  const [trasig, setTrasig] = useState(false);
+  const favicon = getFaviconUrl(url);
+
+  if (!favicon || trasig) return <div className={className}>{emoji}</div>;
+  return <img className={className} src={favicon} alt="" onError={() => setTrasig(true)} />;
+}
+
+function Kort({ p, framhävd, onEdit, onDelete, onToggleAktiv }) {
+  const kategori = getKategori(p.kategori);
+  const aktiv = p.aktiv !== false;
+  const { dagarKvar } = nästaDragning(p.dragningsdag);
+
+  return (
+    <motion.div
+      layout
+      className={`card${framhävd ? ' is-next' : ''}${aktiv ? '' : ' is-paused'}`}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div className="card-top">
+        <Tjänsteikon url={p.url} emoji={kategori.emoji} />
+
+        {!aktiv ? (
+          <span className="tag tag-paused">Pausad</span>
+        ) : framhävd ? (
+          <span className="tag tag-next">{formateraDagarKvar(dagarKvar)}</span>
+        ) : (
+          <span className="tag" style={kategoriTon(kategori.färg)}>{kategori.namn}</span>
+        )}
+      </div>
+
+      <div className="card-body">
+        <span className="card-name">{p.namn}</span>
+        <span className="card-sub">
+          {aktiv ? `Dras den ${p.dragningsdag}:e` : 'Pausad – räknas inte med'}
+        </span>
+      </div>
+
+      <div className="card-foot">
+        <span className="card-price">{formateraBelopp(p.kostnad)}</span>
+        <span className="card-unit">kr/{p.intervall === 'yearly' ? 'år' : 'mån'}</span>
+
+        <div className="card-actions">
+          <button
+            className="icon-btn"
+            onClick={() => onToggleAktiv(p.id)}
+            title={aktiv ? 'Pausa' : 'Aktivera'}
+            aria-label={aktiv ? `Pausa ${p.namn}` : `Aktivera ${p.namn}`}
+          >
+            <Power size={15} />
+          </button>
+          <button className="icon-btn" onClick={() => onEdit(p)} title="Redigera" aria-label={`Redigera ${p.namn}`}>
+            <Pencil size={15} />
+          </button>
+          <button className="icon-btn danger" onClick={() => onDelete(p.id)} title="Ta bort" aria-label={`Ta bort ${p.namn}`}>
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function SubscriptionList({ prenumerationer, nästaId, onEdit, onDelete, onToggleAktiv, onAdd, harNågra }) {
+  if (!prenumerationer.length) {
     return (
-      <div className="glass empty-state">
-        <div className="icon">💳</div>
-        <h3 className="font-bold text-lg">Inga prenumerationer än</h3>
-        <p className="text-sm text-muted">Klicka på "+ Lägg till" i menyn ovan för att lägga in dina tjänster.</p>
+      <div className="empty">
+        <span className="emoji">{harNågra ? '🔍' : '💳'}</span>
+        <h3>{harNågra ? 'Inget matchar filtret' : 'Inga prenumerationer än'}</h3>
+        <p>
+          {harNågra
+            ? 'Prova att söka på något annat eller välj en annan kategori.'
+            : 'Lägg till din första tjänst så räknar Prem ut vad prenumerationerna kostar dig per månad och år.'}
+        </p>
+        {!harNågra && (
+          <button className="btn-add" style={{ marginTop: 8 }} onClick={onAdd}>
+            <Plus size={16} /> Lägg till tjänst
+          </button>
+        )}
       </div>
     );
   }
 
-  // Gruppera efter kategori
-  const grupperade = prenumerationer.reduce((acc, p) => {
-    const k = p.kategori || 'Övrigt';
-    if (!acc[k]) acc[k] = [];
-    acc[k].push(p);
-    return acc;
-  }, {});
-
   return (
-    <div className="space-y-6">
-      <AnimatePresence>
-        {Object.entries(grupperade).map(([kategoriNamn, lista]) => {
-          const kategoriInfo = getKategori(kategoriNamn);
-          const sumKategori = lista
-            .filter(p => p.aktiv !== false)
-            .reduce((sum, p) => sum + (p.intervall === 'yearly' ? p.kostnad / 12 : p.kostnad), 0);
-          
-          return (
-            <motion.div 
-              key={kategoriNamn} 
-              className="list-section"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h2>{kategoriInfo.emoji} {kategoriNamn}</h2>
-                <span className="text-xs text-muted font-mono font-semibold">
-                  Totalt: {formateraPris(sumKategori)}/mån
-                </span>
-              </div>
-
-              <div className="subscription-grid">
-                {lista.map(p => {
-                  const favicon = getFaviconUrl(p.url);
-                  const isAktiv = p.aktiv !== false;
-
-                  return (
-                    <motion.div 
-                      key={p.id} 
-                      className={`subscription-card glass ${!isAktiv ? 'paused' : ''}`}
-                      layout
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.95, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="sub-icon">
-                        {favicon ? (
-                          <img 
-                            src={favicon} 
-                            alt="" 
-                            onError={(e) => { 
-                              e.target.style.display = 'none'; 
-                              if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline'; 
-                            }} 
-                          />
-                        ) : null}
-                        <span style={{ display: favicon ? 'none' : 'inline' }}>{kategoriInfo.emoji}</span>
-                      </div>
-                      
-                      <div className="sub-info">
-                        <div className="sub-name">
-                          {p.namn}
-                          {!isAktiv && <span className="text-xs text-muted font-normal ml-2">(Pausad)</span>}
-                        </div>
-                        <div className="sub-details">
-                          <span className="badge" style={{ backgroundColor: kategoriInfo.färg }}>
-                            {kategoriNamn}
-                          </span>
-                          <span>Dras d. {p.dragningsdag}:e</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="sub-cost">
-                          {formateraPris(p.kostnad)} 
-                          <span className="sub-interval">{p.intervall === 'monthly' ? '/mån' : '/år'}</span>
-                        </div>
-                      </div>
-
-                      <div className="sub-actions">
-                        {onToggleAktiv && (
-                          <button 
-                            className={`btn-icon ${isAktiv ? 'text-emerald-400' : 'text-zinc-600'}`} 
-                            onClick={() => onToggleAktiv(p.id)} 
-                            title={isAktiv ? 'Pausa prenumeration' : 'Aktivera prenumeration'}
-                          >
-                            <Power size={16} />
-                          </button>
-                        )}
-                        <button className="btn-icon" onClick={() => onEdit(p)} title="Redigera">
-                          <Edit2 size={15} />
-                        </button>
-                        <button className="btn-icon" onClick={() => onDelete(p.id)} title="Ta bort">
-                          <Trash2 size={15} className="text-rose-400" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          );
-        })}
+    <div className="grid">
+      <AnimatePresence mode="popLayout">
+        {prenumerationer.map(p => (
+          <Kort
+            key={p.id}
+            p={p}
+            framhävd={p.id === nästaId}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onToggleAktiv={onToggleAktiv}
+          />
+        ))}
       </AnimatePresence>
+
+      <button className="card-add" onClick={onAdd}>
+        <span><Plus size={20} /></span>
+        <b>Lägg till tjänst</b>
+      </button>
     </div>
   );
 }

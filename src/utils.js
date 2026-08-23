@@ -30,6 +30,11 @@ export function formateraPris(belopp) {
   return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(belopp);
 }
 
+/** Belopp utan valutasuffix – hero och kort sätter "kr" som egen typografi. */
+export function formateraBelopp(belopp) {
+  return new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 }).format(belopp);
+}
+
 export function månadskostnad(kostnad, intervall) {
   return intervall === 'yearly' ? Number(kostnad) / 12 : Number(kostnad);
 }
@@ -48,16 +53,70 @@ export function getKategori(namn) {
   return KATEGORIER.find(k => k.namn === namn) || KATEGORIER[KATEGORIER.length - 1];
 }
 
+/** Tonad bakgrund + läsbar text ur kategorifärgen, så pillren inte kräver en andra palett. */
+export function kategoriTon(färg) {
+  return {
+    background: `color-mix(in srgb, ${färg} 13%, #fff)`,
+    color: `color-mix(in srgb, ${färg} 72%, #12100F)`,
+  };
+}
+
+const MÅNADER = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+/**
+ * Nästa gång pengarna dras. Räknar på riktiga datum i stället för att anta 31-dagarsmånader,
+ * och klampar dagen till månadens sista dag (en dragning den 31:e sker den 28/29 i februari).
+ */
+export function nästaDragning(dragningsdag, från = new Date()) {
+  const dag = Math.min(Math.max(Number(dragningsdag) || 1, 1), 31);
+  const idag = new Date(från.getFullYear(), från.getMonth(), från.getDate());
+
+  const iMånad = (år, månad) => {
+    const sista = new Date(år, månad + 1, 0).getDate();
+    return new Date(år, månad, Math.min(dag, sista));
+  };
+
+  let datum = iMånad(idag.getFullYear(), idag.getMonth());
+  if (datum < idag) datum = iMånad(idag.getFullYear(), idag.getMonth() + 1);
+
+  const dagarKvar = Math.round((datum - idag) / 86400000);
+  return { datum, dagarKvar };
+}
+
+export function formateraKortDatum(datum) {
+  return `${datum.getDate()} ${MÅNADER[datum.getMonth()]}`;
+}
+
+export function månadsEtikett(datum) {
+  return MÅNADER[datum.getMonth()];
+}
+
+export function formateraDagarKvar(dagarKvar) {
+  if (dagarKvar === 0) return 'idag';
+  if (dagarKvar === 1) return 'i morgon';
+  return `om ${dagarKvar} d`;
+}
+
+/** Aktiva prenumerationer sorterade på hur nära nästa dragning ligger. */
 export function kommandeUppgifter(prenumerationer, dagar = 30) {
-  const idag = new Date().getDate();
   return prenumerationer
     .filter(p => p.aktiv !== false)
-    .map(p => {
-      const dag = Number(p.dragningsdag) || 1;
-      let dagarKvar = dag >= idag ? dag - idag : 31 - idag + dag;
-      return { ...p, dagarKvar };
-    })
+    .map(p => ({ ...p, ...nästaDragning(p.dragningsdag) }))
     .filter(p => p.dagarKvar <= dagar)
     .sort((a, b) => a.dagarKvar - b.dagarKvar);
 }
 
+/** Månadskostnad per kategori, största först. Underlaget för både staplar och legend. */
+export function kostnadPerKategori(prenumerationer) {
+  const summor = new Map();
+  prenumerationer
+    .filter(p => p.aktiv !== false)
+    .forEach(p => {
+      const namn = p.kategori || 'Övrigt';
+      summor.set(namn, (summor.get(namn) || 0) + månadskostnad(p.kostnad, p.intervall));
+    });
+
+  return [...summor.entries()]
+    .map(([namn, belopp]) => ({ ...getKategori(namn), namn, belopp }))
+    .sort((a, b) => b.belopp - a.belopp);
+}
