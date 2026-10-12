@@ -107,7 +107,7 @@ function SubscriptionForm({ initial, onSubmit, onClose }) {
 
         <label className="check">
           <input type="checkbox" name="aktiv" checked={form.aktiv !== false} onChange={ändra} />
-          Aktiv – räknas med i månadssumman
+          Aktiv – räknas med i summan
         </label>
 
         <div className="modal-foot">

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, CalendarDays, Info } from 'lucide-react';
 import { Tjänsteikon } from './SubscriptionList';
 import {
-  formateraBelopp, formateraPris, getKategori, kategoriTon, månadskostnad,
+  formateraBelopp, formateraPris, getKategori, kategoriTon,
 } from '../utils';
 
 const VECKODAGAR = ['mån', 'tis', 'ons', 'tors', 'fre', 'lör', 'sön'];
@@ -151,7 +151,6 @@ function Kalender({ prenumerationer, onEdit }) {
                   <span className="cal-yearly-day">den {p.dragningsdag}:e</span>
                   <span className="cal-yearly-amount">
                     {formateraBelopp(p.kostnad)} kr/år
-                    <em>≈ {formateraBelopp(månadskostnad(p.kostnad, 'yearly'))} kr/mån</em>
                   </span>
                 </button>
               );

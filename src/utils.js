@@ -36,7 +36,7 @@ export function formateraBelopp(belopp) {
 }
 
 export function månadskostnad(kostnad, intervall) {
-  return intervall === 'yearly' ? Number(kostnad) / 12 : Number(kostnad);
+  return intervall === 'yearly' ? 0 : Number(kostnad);
 }
 
 export function årskostnad(kostnad, intervall) {
@@ -106,7 +106,7 @@ export function kommandeUppgifter(prenumerationer, dagar = 30) {
     .sort((a, b) => a.dagarKvar - b.dagarKvar);
 }
 
-/** Månadskostnad per kategori, största först. Underlaget för både staplar och legend. */
+/** Månadskostnad per kategori (årstjänster räknas inte), största först. Underlaget för både staplar och legend. */
 export function kostnadPerKategori(prenumerationer) {
   const summor = new Map();
   prenumerationer
@@ -118,5 +118,7 @@ export function kostnadPerKategori(prenumerationer) {
 
   return [...summor.entries()]
     .map(([namn, belopp]) => ({ ...getKategori(namn), namn, belopp }))
+    // Kategorier med bara årstjänster blir 0 kr/mån – de hör inte hemma i månadsbilden.
+    .filter(k => k.belopp > 0)
     .sort((a, b) => b.belopp - a.belopp);
 }

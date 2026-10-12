@@ -15,7 +15,8 @@ function Hero({ prenumerationer }) {
   const aktiva = prenumerationer.filter(p => p.aktiv !== false);
   const totalMånad = aktiva.reduce((s, p) => s + månadskostnad(p.kostnad, p.intervall), 0);
   const totalÅr = aktiva.reduce((s, p) => s + årskostnad(p.kostnad, p.intervall), 0);
-  const snitt = aktiva.length ? totalMånad / aktiva.length : 0;
+  const månadstjänster = aktiva.filter(p => p.intervall !== 'yearly');
+  const snitt = månadstjänster.length ? totalMånad / månadstjänster.length : 0;
 
   const idag = new Date();
   const period = `${MÅNADSNAMN[idag.getMonth()]} ${idag.getFullYear()}`;
